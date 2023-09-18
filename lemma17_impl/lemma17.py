@@ -1,4 +1,5 @@
 import sys
+import os
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -213,9 +214,157 @@ def construct_prefix_tree(tree, hash_map, data):
     
     fig.savefig("trie.png")
 
+def get_common_prefix_as_array(s1,s2):
+    if len(s1) > len(s2):
+        temp = s1
+        s1 = s2
+        s2 = temp
+
+    co_pr = []
+    for i,_ in enumerate(s1):
+        if s1[i] != s2[i]:
+            break
+        co_pr.append(s1[i])
+    return co_pr
+
+def startswith(a1, a2):
+    if len(a2) < len(a1):
+        return False
+    for i,x in enumerate(a1):
+        if x != a2[i]:
+            return False
+    return True
+
+def clen_to_trie_incomp(ct):
+    t = []
+    incomp_char_map = {}
+    
+    for edge in ct.edges:
+        u1 = edge[0][0]
+        v1 = edge[0][1]
+        u2 = edge[1][0]
+        v2 = edge[1][1]
+
+        a = get_common_prefix_as_array(u1, v1)
+        b = get_common_prefix_as_array(u2, v2)
+        m1 = len(a)
+        m2 = len(b)
+
+        if startswith(b,a):
+            if (b[m2-1], m2-1) not in incomp_char_map:
+                incomp_char_map[b[m2-1], m2-1] = ("d" + str(len(incomp_char_map)), "d"+str(len(incomp_char_map)+1))
+            
+    for node in ct.nodes:
+        u = list(node[0])
+        v = list(node[1])
+
+        for word in [u,v]:
+            for i,x in enumerate(word):
+                if (x,i) not in incomp_char_map:
+                    character_map[(x,i)] = x
+                word[i] = character_map[(x,i)]
+        
+        updated_nodes.append((u,v))
+        #print(updated_nodes) 
+    for node in updated_nodes:
+        print(node)
+        for word in [node[0],node[1]]:
+            #print(word)
+            for i in range(0, len(word)):
+                new_node = [()]
+                for j in range(0,i+1):
+                    new_node.append(word[j])
+                t.append(tuple(new_node))
+
+    #print(t)
+
+    for n1 in t:
+        for n2 in t:
+            if n1 == n2:
+                continue
+            if get_common_prefix_as_array(n1,n2) == get_common_prefix_as_array(n1,n1):
+                t_edges.append((n1,n2))
+
+
+
+def clen_to_trie(ct):
+    t = []
+    t_edges = []
+    character_map = {}
+    updated_nodes = []
+
+    for edge in ct.edges:
+        u1 = edge[0][0]
+        v1 = edge[0][1]
+        u2 = edge[1][0]
+        v2 = edge[1][1]
+
+        a = get_common_prefix_as_array(u1, v1)
+        b = get_common_prefix_as_array(u2, v2)
+        m1 = len(a)
+        m2 = len(b)
+
+        if not startswith(b,a):
+            for i in range(0, m1):
+                if a[i] != b[i]:
+                    character_map[(a[i],i)] = "c" + str(i)
+                    character_map[(b[i],i)] = "c" + str(i)
+                else:
+                    character_map[(a[i],i)] = a[i]
+
+    for node in ct.nodes:
+        u = list(node[0])
+        v = list(node[1])
+
+        for word in [u,v]:
+            for i,x in enumerate(word):
+                if (x,i) not in character_map:
+                    character_map[(x,i)] = x
+                word[i] = character_map[(x,i)]
+        
+        updated_nodes.append((u,v))
+        #print(updated_nodes) 
+    for node in updated_nodes:
+        print(node)
+        for word in [node[0],node[1]]:
+            #print(word)
+            for i in range(0, len(word)):
+                new_node = [()]
+                for j in range(0,i+1):
+                    new_node.append(word[j])
+                t.append(tuple(new_node))
+
+    #print(t)
+
+    for n1 in t:
+        for n2 in t:
+            if n1 == n2:
+                continue
+            if get_common_prefix_as_array(n1,n2) == get_common_prefix_as_array(n1,n1):
+                t_edges.append((n1,n2))
+
+    #print(t_edges)
+
+    t = nx.DiGraph()
+    t.add_edges_from(t_edges)
+    t = nx.transitive_reduction(t)
+
+    print("TRIE FROM CLEN: ", nx.is_tree(t))
+    print(t.nodes)
+
+    fig, ax = plt.subplots()
+    fig.set_figwidth(15)
+    pos = nx.nx_agraph.graphviz_layout(t, prog="dot")
+    nx.draw(t, pos)
+    nx.draw_networkx_labels(t, pos=pos)
+    
+    fig.savefig("trie_from_clen.png")
+
+    return t
+
 
 def main():
-    graph = init_e_graph(2)
+    """graph = init_e_graph(2)
 
     #graph = init_word_graph()
 
@@ -237,6 +386,12 @@ def main():
     tree = construct_tree(hashmap, data)
     
     prefix_tree = construct_prefix_tree(tree, hashmap, data)
+    """
+
+    clen_graph = nx.DiGraph()
+    clen_graph.add_edges_from([((tuple("bb"),tuple("bbb")),(tuple("aaab"),tuple("aaaba")))])
+
+    clen_to_trie(clen_graph)
 
 
 if __name__ == "__main__":
